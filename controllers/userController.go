@@ -62,7 +62,18 @@ func Signup() gin.HandlerFunc {
 		user.UpdatedAt, _ = time.Parse(time.RFC822, time.Now().Format(time.RFC822))
 		user.ID = primitive.NewObjectID()
 		user.UserID = user.ID.Hex()
-		helper.GenerateAllToken(*user)
+		token, refreshToken, err := helper.GenerateAllToken(
+			*user.Email,
+			*user.FirstName,
+			*user.LastName,
+			user.UserID,
+			*user.UserType,
+		)
+		if err != nil {
+			log.Fatal("Problem creating JWT tokens")
+		}
+		user.Token = &token
+		user.RefreshToken = &refreshToken
 
 		resultInsertionNo, insertErr := userCollection.InsertOne(ctx, user)
 		if insertErr != nil {
