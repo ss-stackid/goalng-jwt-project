@@ -23,7 +23,14 @@ var (
 	validate                         = validator.New()
 )
 
-func HashPassword()
+func HashPassword(password string) *string {
+	encrypt, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	if err != nil {
+		log.Panic(err)
+	}
+	passwd := string(encrypt)
+	return &passwd
+}
 
 func VerifyPassword(userPassword, providedPassword string) (bool, string) {
 	var isPasswordVerified = true
@@ -56,7 +63,8 @@ func Signup() gin.HandlerFunc {
 			log.Panic(err)
 
 		}
-
+		password := HashPassword(*user.Password)
+		user.Password = password
 		count, err = userCollection.CountDocuments(ctx, bson.M{"phone": user.Phone})
 		defer cancel()
 		if err != nil {
