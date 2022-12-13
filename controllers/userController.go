@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"time"
@@ -24,7 +25,16 @@ var (
 
 func HashPassword()
 
-func VerifyPassword()
+func VerifyPassword(userPassword, providedPassword string) (bool, string) {
+	var isPasswordVerified = true
+	var msg = ""
+	err := bcrypt.CompareHashAndPassword([]byte(providedPassword), []byte(userPassword))
+	if err != nil {
+		isPasswordVerified = false
+		msg = "Email or Password is invalid"
+	}
+	return isPasswordVerified, msg
+}
 
 func Signup() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -87,7 +97,28 @@ func Signup() gin.HandlerFunc {
 
 }
 
-func Login()
+func Login() *gin.HandlerFunc {
+	return func(c *gin.Context) {
+		//	1. set a context for 100 seconds
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+		var user models.User
+		var foundUser models.User
+		//	2. Bind the http body with user model
+		if err := c.BindJSON(&user); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		//	3. get the user from usercollections
+		err := userCollection.FindOne(ctx, bson.M{"email": *user.Email}).Decode(&foundUser)
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "The email or password is incorrect"})
+			return
+		}
+		//	4. Check whether the password is valid or not
+		isPasswordValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		defer cancel()
+	}
+}
 
 func GetUsers()
 
