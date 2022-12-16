@@ -1,9 +1,13 @@
 package helpers
 
 import (
+	"context"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/ss-stackid/golang-jwt-project/database"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"time"
@@ -50,4 +54,25 @@ func GenerateAllToken(email, firstName, lastName, uid, userType string) (token, 
 		return "", "", err
 	}
 	return token, refreshToken, err
+}
+
+func UpdateAllTokens(token, refreshToken, uid string) {
+	//	Get the use with specified UID
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+	var updateObj primitive.D
+	updateObj = append(updateObj, bson.E{Key: "token", Value: token})
+	updateObj = append(updateObj, bson.E{Key: "refresh_token", Value: refreshToken})
+
+	updatedAt, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+	updateObj = append(updateObj, bson.E{Key: "updated_at", Value: updatedAt})
+	upsert := true
+	filter := bson.M{"user_id": uid}
+	opt := options.UpdateOptions{
+		Upsert: &upsert,
+	}
+	_, err := userCollection.UpdateOne(ctx, filter, bson.D{{"$set", updateObj}}, &opt)
+	cancel()
+	if err != nil {
+		log.Panic(err)
+	}
 }
